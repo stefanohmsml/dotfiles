@@ -2,8 +2,8 @@ local wezterm = require 'wezterm'
 return {
 	adjust_window_size_when_changing_font_size = false,
 	-- color_scheme = 'termnial.sexy',
-	color_scheme = 'Catppuccin Mocha',
-	enable_tab_bar = false,
+	color_scheme = 'Catppuccin Latte',
+	enable_tab_bar = true,
 	font_size = 16.0,
 	font = wezterm.font('JetBrains Mono'),
 	-- macos_window_background_blur = 40,
