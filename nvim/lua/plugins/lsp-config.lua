@@ -20,6 +20,7 @@ return {
       "typescript-language-server", -- Crucial for React (TSX/JSX)
       "eslint-lsp", -- Highly recommended for React (linting & formatting via ESLint)
       "tailwindcss-language-server", -- If you use Tailwind CSS
+      "pyright",
     },
   },
   {
@@ -56,7 +57,20 @@ return {
       lspconfig.html.setup({
         capabilities = capabilities,
       })
-
+      lspconfig.pyright.setup({
+        capabilities = capabilities, -- Pass nvim-cmp's capabilities
+        on_attach = on_attach,
+        settings = { -- Optional: Pyright specific settings
+          python = {
+            analysis = {
+              autoSearchPaths = true,
+              useLibraryCodeForTypes = true,
+              -- diagnosticMode = "workspace"
+              typeCheckingMode = "basic", -- "off", "basic", "strict"
+            },
+          },
+        },
+      })
       -- Lua
       -- Neovim 0.11.x has better built-in support for configuring lua_ls.
       -- You can often simplify this or rely on nvim-lspconfig's defaults.
