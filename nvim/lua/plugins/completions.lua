@@ -4,27 +4,18 @@ return {
     "hrsh7th/nvim-cmp",
     event = "InsertEnter", -- Load nvim-cmp when entering insert mode
     dependencies = {
-      -- Source for LSP completions
       "hrsh7th/cmp-nvim-lsp",
-      -- Source for buffer word completions
       "hrsh7th/cmp-buffer",
-      -- Source for file system path completions
       "hrsh7th/cmp-path",
-      -- Snippet engine
       "L3MON4D3/LuaSnip",
-      -- Source for LuaSnip completions
       "saadparwaiz1/cmp_luasnip",
-      -- Optional: for nice icons (ensure you have a Nerd Font)
-      -- 'onsails/lspkind.nvim',
+      "onsails/lspkind.nvim", -- Optional
     },
     config = function()
       local cmp = require("cmp")
       local luasnip = require("luasnip")
+      local lspkind = require("lspkind") -- Optional
 
-      -- Optional: If you use lspkind.nvim for icons
-      -- local lspkind = require('lspkind')
-
-      -- Set completeopt for a better experience
       vim.opt.completeopt = { "menu", "menuone", "noselect" }
 
       cmp.setup({
@@ -40,17 +31,11 @@ return {
           { name = "path" },
         }),
         formatting = {
-          -- Optional: If you use lspkind.nvim for icons
-          -- format = lspkind.cmp_format({
-          --   mode = 'symbol_text', -- Show symbol and text
-          --   maxwidth = 50,      -- Truncate overly long text
-          --   ellipsis_char = '...', -- Character to use for truncation
-          --   -- Default icons for different completion kinds
-          --   -- You can customize these further
-          --   before = function (entry, vim_item)
-          --     return vim_item
-          --   end
-          -- })
+          format = lspkind.cmp_format({ -- Optional: if using lspkind
+            mode = "symbol_text",
+            maxwidth = 50,
+            ellipsis_char = "...",
+          }),
           -- Basic formatting if not using lspkind
           fields = { "kind", "abbr", "menu" },
           format = function(entry, vim_item)
@@ -63,18 +48,45 @@ return {
             return vim_item
           end,
         },
+
+        -- CRITICAL CHANGE FOR MANUAL TRIGGERING:
+        -- Avoid cmp.mapping.preset.insert() if its defaults cause auto-triggering.
+        -- Define all mappings explicitly.
         mapping = {
+          -- Scroll documentation
+          ["<C-b>"] = cmp.mapping.scroll_docs(-4),
+          ["<C-f>"] = cmp.mapping.scroll_docs(4),
+
+          -- Abort completion
+          ["<C-e>"] = cmp.mapping.abort(),
+
+          -- Accept selection:
+          -- By default, <CR> will confirm the selected item.
+          -- Set `select` to `false` to only confirm if you've explicitly selected one with C-n/C-p.
+          ["<CR>"] = cmp.mapping.confirm({ select = true }),
+
+          -- Manual completion triggers
+          ["<C-Space>"] = cmp.mapping.complete(), -- Standard manual trigger
+          ["<D-Space>"] = cmp.mapping.complete(), -- For Cmd+Space on macOS
+
+          -- Tab behavior:
+          -- - If menu visible & item selected: confirm.
+          -- - Else if snippet expandable: expand/jump.
+          -- - Else: trigger completion.
           ["<Tab>"] = cmp.mapping(function(fallback)
             if cmp.visible() then
               cmp.confirm({ select = true })
             elseif luasnip.expand_or_jumpable() then
               luasnip.expand_or_jump()
             else
-              -- If completion is not visible and no snippet to jump, trigger completion.
-              cmp.complete()
+              cmp.complete() -- Manually trigger completion
             end
           end, { "i", "s" }),
 
+          -- Shift+Tab behavior:
+          -- - If menu visible: select previous.
+          -- - Else if snippet jumpable backward: jump.
+          -- - Else: fallback (e.g., de-indent).
           ["<S-Tab>"] = cmp.mapping(function(fallback)
             if cmp.visible() then
               cmp.select_prev_item()
@@ -85,66 +97,55 @@ return {
             end
           end, { "i", "s" }),
 
-          ["<D-Space>"] = cmp.mapping.complete(), -- Cmd+Space to trigger completion
-          ["<C-Space>"] = cmp.mapping.complete(), -- Ctrl+Space as an alternative
+          -- Navigation within the completion menu
+          ["<C-n>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item({ behavior = cmp.SelectBehavior.Insert })
+            else
+              -- If you want C-n to also trigger completion if the menu isn't visible:
+              -- cmp.complete()
+              -- Else, let it do its default Neovim action (often moves cursor down)
+              fallback()
+            end
+          end, { "i", "s" }),
 
-          ["<C-n>"] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }),
-          ["<C-p>"] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }),
-          ["<C-b>"] = cmp.mapping.scroll_docs(-4),
-          ["<C-f>"] = cmp.mapping.scroll_docs(4),
-          ["<C-e>"] = cmp.mapping.abort(),
-          ["<CR>"] = cmp.mapping.confirm({ select = true }),
+          ["<C-p>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item({ behavior = cmp.SelectBehavior.Insert })
+            else
+              -- If you want C-p to also trigger completion if the menu isn't visible:
+              -- cmp.complete()
+              -- Else, let it do its default Neovim action (often moves cursor up)
+              fallback()
+            end
+          end, { "i", "s" }),
         },
-        -- No automatic triggering on typing.
-        -- We achieve this by not setting up event-based triggers like 'InsertCharPre'
-        -- to call cmp.complete() automatically.
+
+        -- By not setting up `event` based completion triggers (like `InsertCharPre` or `TextChangedI`)
+        -- to call `cmp.complete()`, and by explicitly defining mappings,
+        -- the completion menu will only appear upon manual invocation.
       })
 
-      -- Setup nvim-cmp capabilities for LSP servers
-      -- This should ideally be done where you configure your LSP servers
-      -- For example, in your lspconfig.lua or similar:
-      --
+      -- Ensure LSP capabilities are set up correctly for nvim-cmp
+      -- This is typically done in your lspconfig setup:
       -- local capabilities = require('cmp_nvim_lsp').default_capabilities()
       -- require('lspconfig').your_lsp_server.setup {
       --   capabilities = capabilities,
-      --   -- other lsp settings
       -- }
-      --
-      -- If you want to set it globally here (though less common for lazy.nvim structure):
-      -- local capabilities = require('cmp_nvim_lsp').default_capabilities()
-      -- For each server in lspconfig, you'd typically pass these capabilities.
-      -- As a fallback, some people might iterate over all servers, but it's better
-      -- to set it per server setup.
-      -- Example:
-      -- local lspconfig = require('lspconfig')
-      -- for _, server_name in ipairs(lspconfig.util.available_servers()) do
-      --    lspconfig[server_name].setup({
-      --        capabilities = capabilities
-      --    })
-      -- end
-      -- NOTE: The above loop is a generic example and might need adjustments
-      -- based on your specific LSP configuration setup. It's generally better
-      -- to pass capabilities directly when setting up each LSP server individually.
     end,
   },
 
-  -- LuaSnip: Snippet engine
   {
     "L3MON4D3/LuaSnip",
-    -- event = "InsertEnter", -- Load when entering insert mode
-    -- Or, if you prefer to load it with nvim-cmp:
-    dependencies = { "saadparwaiz1/cmp_luasnip" }, -- Ensure cmp_luasnip is also loaded
+    dependencies = { "saadparwaiz1/cmp_luasnip" },
     config = function()
-      local luasnip = require("luasnip")
-      -- You can configure LuaSnip further here if needed
-      -- e.g., require('luasnip.loaders.from_vscode').lazy_load() to load VSCode style snippets
-      -- luasnip.filetype_extend("javascript", { "html" }) -- example filetype extension
+      -- local luasnip = require('luasnip')
+      -- require('luasnip.loaders.from_vscode').lazy_load() -- Example
     end,
   },
 
-  -- Optional: lspkind.nvim for icons in completion menu
-  {
+  { -- Optional: lspkind.nvim for icons
     "onsails/lspkind.nvim",
-    event = "BufReadPre", -- Load early to make icons available
+    event = "BufReadPre",
   },
 }
